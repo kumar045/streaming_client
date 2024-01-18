@@ -190,6 +190,11 @@ document.addEventListener("DOMContentLoaded", function() {
         source.buffer = audioBuffer;
         source.connect(audioContext.destination);
         source.start();
+        source.onended = () => {
+            if (started) {
+                recognition.start();
+            }
+        };
     };
 
     document.querySelector("#startStopButton").addEventListener('click', function() {
@@ -204,3 +209,4 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     });
 });
+
