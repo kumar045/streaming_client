@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     `;
     document.head.appendChild(style);
-
+    // Create the user interface elements
     var card = document.createElement('div');
     card.id = 'card';
     card.className = 'card';
@@ -122,6 +122,7 @@ document.addEventListener("DOMContentLoaded", function() {
         card.classList.toggle('open');
     });
 
+    // Speech recognition setup
     let recognition;
     let started = false;
     let audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -132,22 +133,23 @@ document.addEventListener("DOMContentLoaded", function() {
         recognition.lang = 'en-US';
         recognition.interimResults = false;
         recognition.maxAlternatives = 1;
+
+        recognition.onresult = function(event) {
+            const message = event.results[0][0].transcript;
+            send_message(message);
+        };
+
+        recognition.onend = function() {
+            if (started) {
+                recognition.start();
+            }
+        };
     } else {
         document.querySelector("#startStopButton").textContent = "Browser not supported";
         return;
     }
 
-    recognition.onresult = function(event) {
-        const message = event.results[0][0].transcript;
-        send_message(message);
-    };
-
-    recognition.onend = function() {
-        if (started) {
-            recognition.start();
-        }
-    };
-
+    // Function to handle message sending and audio playback
     const send_message = async (message) => {
         const response = await fetch("https://streaming-assistant.onrender.com/stream", {
             method: "POST",
@@ -163,35 +165,22 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         const reader = response.body.getReader();
-        play_streamed_audio(reader);
-    };
+        const audioData = await reader.read();
+        const audioBlob = new Blob([audioData.value], { type: 'audio/opus' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
 
-    const play_streamed_audio = async (reader) => {
-        const source = audioContext.createBufferSource();
-        const stream = new ReadableStream({
-            start(controller) {
-                function push() {
-                    reader.read().then(({ done, value }) => {
-                        if (done) {
-                            controller.close();
-                            return;
-                        }
-                        controller.enqueue(value);
-                        push();
-                    });
-                }
-                push();
+        audio.play();
+
+        // Restart recognition after audio ends
+        audio.onended = () => {
+            if (started) {
+                recognition.start();
             }
-        });
-
-        const response = new Response(stream);
-        const arrayBuffer = await response.arrayBuffer();
-        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        source.buffer = audioBuffer;
-        source.connect(audioContext.destination);
-        source.start();
+        };
     };
 
+    // Toggle the speech recognition on button click
     document.querySelector("#startStopButton").addEventListener('click', function() {
         if (!started) {
             recognition.start();
@@ -202,7 +191,8 @@ document.addEventListener("DOMContentLoaded", function() {
             recognition.stop();
             started = false;
             this.textContent = "Call";
-            this.style.background='green';
+            this.style.background = 'green';
         }
     });
 });
+    
