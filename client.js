@@ -128,9 +128,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if ('webkitSpeechRecognition' in window) {
         recognition = new webkitSpeechRecognition();
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.lang = 'en-US';
-        recognition.interimResults = false;
+        recognition.interimResults = true;
         recognition.maxAlternatives = 1;
     } else {
         document.querySelector("#startStopButton").textContent = "Browser not supported";
