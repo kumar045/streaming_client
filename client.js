@@ -1,7 +1,10 @@
-// client.js
-document.addEventListener("DOMContentLoaded", function() {
-    var style = document.createElement('style');
-    style.innerHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text Demo</title>
+    <style>
         html, body {
             width: 100%;
             height: 100%;
@@ -70,7 +73,7 @@ document.addEventListener("DOMContentLoaded", function() {
             left: 10px;
             bottom: 10px;
             cursor: pointer;
-            widht: 50px;
+            width: 50px;
             height: 50px;
         }
         @media (max-width: 500px) {
@@ -87,112 +90,84 @@ document.addEventListener("DOMContentLoaded", function() {
                 font-size: 1em; /* Adjust font size for smaller devices */
             }
         }
-    `;
-    document.head.appendChild(style);
-    // Create the user interface elements
-    var card = document.createElement('div');
-    card.id = 'card';
-    card.className = 'card';
-    document.body.appendChild(card);
+    </style>
+</head>
+<body>
+    <div id="card" class="card">
+        <img src="https://i.ibb.co/x2Znbr6/free-chat-2639493-2187526.png" class="icon">
+        <div id="phoneText" class="phoneText">Phone</div>
+        <button id="startStopButton" class="startStopButton">Call</button>
+        <div id="callText" class="callText">Start Call</div>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var card = document.getElementById('card');
+            var startStopButton = document.getElementById('startStopButton');
+            var recognition;
+            var started = false;
+            var sending_message = false;
 
-    var icon = document.createElement('img');
-    icon.src = 'https://i.ibb.co/x2Znbr6/free-chat-2639493-2187526.png'; // Replace with your icon path
-    icon.className = 'icon';
-    document.body.appendChild(icon);
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = false;
+                recognition.lang = 'en-US';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
 
-    var phoneText = document.createElement('div');
-    phoneText.id = 'phoneText';
-    phoneText.className = 'phoneText';
-    phoneText.textContent = 'Phone';
-    card.appendChild(phoneText);
+                recognition.onresult = function(event) {
+                    const message = event.results[0][0].transcript;
+                    send_message(message);
+                };
 
-    var startStopButton = document.createElement('button');
-    startStopButton.id = 'startStopButton';
-    startStopButton.className = 'startStopButton';
-    startStopButton.textContent = 'Call';
-    card.appendChild(startStopButton);
-
-    var callText = document.createElement('div');
-    callText.id = 'callText';
-    callText.className = 'callText';
-    callText.textContent = 'Start Call';
-    card.appendChild(callText);
-
-    icon.addEventListener('click', function() {
-        card.classList.toggle('open');
-    });
-
-    // Speech recognition setup
-    let recognition;
-    let started = false;
-    let audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-    if ('webkitSpeechRecognition' in window) {
-        recognition = new webkitSpeechRecognition();
-        recognition.continuous = false;
-        recognition.lang = 'en-US';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
-
-        recognition.onresult = function(event) {
-            const message = event.results[0][0].transcript;
-            send_message(message);
-        };
-
-        recognition.onend = function() {
-            if (started) {
-                recognition.start();
+                recognition.onend = function() {
+                    if (started && !sending_message) {
+                        recognition.start();
+                    }
+                };
+            } else {
+                startStopButton.textContent = "Browser not supported";
+                return;
             }
-        };
-    } else {
-        document.querySelector("#startStopButton").textContent = "Browser not supported";
-        return;
-    }
 
-    // Function to handle message sending and audio playback
-    const send_message = async (message) => {
-        const response = await fetch("https://streaming-assistant.onrender.com/stream", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ "message": message })
+            const send_message = async (message) => {
+                sending_message = true;
+                const response = await fetch("https://your-server.com/stream", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ "message": message })
+                });
+
+                const audioBlob = await response.blob();
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+
+                audio.play();
+
+                audio.onended = () => {
+                    sending_message = false;
+                    if (started) {
+                        recognition.start();
+                    }
+                };
+            };
+
+            startStopButton.addEventListener('click', function() {
+                if (!started) {
+                    recognition.start();
+                    started = true;
+                    this.textContent = "End";
+                    this.style.background = 'red';
+                } else {
+                    recognition.stop();
+                    started = false;
+                    this.textContent = "Call";
+                    this.style.background = 'green';
+                }
+            });
         });
-
-        if (!response.body) {
-            console.error("Server did not return audio stream.");
-            return;
-        }
-
-        const reader = response.body.getReader();
-        const audioData = await reader.read();
-        const audioBlob = new Blob([audioData.value], { type: 'audio/opus' });
-        const audioUrl = URL.createObjectURL(audioBlob);
-        const audio = new Audio(audioUrl);
-
-        audio.play();
-
-        // Restart recognition after audio ends
-        audio.onended = () => {
-            if (started) {
-                recognition.start();
-            }
-        };
-    };
-
-    // Toggle the speech recognition on button click
-    document.querySelector("#startStopButton").addEventListener('click', function() {
-        if (!started) {
-            recognition.start();
-            started = true;
-            this.textContent = "End";
-            this.style.background = 'red';
-        } else {
-            recognition.stop();
-            started = false;
-            this.textContent = "Call";
-            this.style.background = 'green';
-        }
-    });
-});
-    
+    </script>
+</body>
+</html>
+            
