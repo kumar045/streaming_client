@@ -147,6 +147,10 @@ document.addEventListener("DOMContentLoaded", function() {
             recognition.start();
         }
     };
+    recognition.onspeechend = function () {
+                recognition.stop();
+            };
+    
 
     const send_message = async (message) => {
         const response = await fetch("https://streaming-assistant.onrender.com/stream", {
