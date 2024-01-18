@@ -196,11 +196,13 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!started) {
             recognition.start();
             started = true;
-            this.textContent = "Stop";
+            this.textContent = "End";
+            this.style.background = 'red';
         } else {
             recognition.stop();
             started = false;
-            this.textContent = "Start";
+            this.textContent = "Call";
+            this.style.background='green';
         }
     });
 });
